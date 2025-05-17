@@ -11,15 +11,15 @@
         </router-link>
       </li>
       <li>
-        <router-link to="/weather">
-          <span class="icon">🌤️</span>
-          <span class="tooltip">天气查询</span>
+        <router-link to="/attraction">
+          <span class="icon">🏯</span>
+          <span class="tooltip">景点查询</span>
         </router-link>
       </li>
       <li>
-        <router-link to="/luggage">
-          <span class="icon">🧳</span>
-          <span class="tooltip">行李准备</span>
+        <router-link to="/weather">
+          <span class="icon">🌤️</span>
+          <span class="tooltip">天气查询</span>
         </router-link>
       </li>
       <li>

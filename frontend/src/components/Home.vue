@@ -8,20 +8,14 @@
     </section>
 
     <section class="tool-sections">
-      <!-- 查景点 + 看攻略 -->
-      <div class="card-group">
-        <h2>“小红书”一下</h2>
-        <SearchBox />
-      </div>
-
-      <!-- 其他工具卡片 -->
+      <!-- 工具卡片 -->
       <div class="card-group other-tools">
         <ClockCard />
         <CalendarCard />
         <NoteCard />
       </div>
     </section>
-
+    
     <footer class="footer">
       <p>© 2025 MeowTrip 喵趣</p>
     </footer>
@@ -29,14 +23,12 @@
 </template>
 
 <script>
-import SearchBox from './SearchBox.vue'
 import ClockCard from './ClockCard.vue'
 import CalendarCard from './CalendarCard.vue'
 import NoteCard from './NoteCard.vue'
 
 export default {
   components: {
-    SearchBox,
     ClockCard,
     CalendarCard,
     NoteCard
