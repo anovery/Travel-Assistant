@@ -1,3 +1,4 @@
+#这是我的模块
 <template>
   <div class="container">
 
@@ -24,6 +25,7 @@
             type="text"
             placeholder="输入景点名称"
             class="styled-input"
+            @keyup.enter="addSpot"
           />
           <button @click="addSpot" class="primary-button">
             <i class="fas fa-plus"></i> 添加
@@ -43,6 +45,7 @@
             type="text"
             placeholder="输入想去的城市"
             class="styled-input"
+            @keyup.enter="getAiSuggestion"
           />
           <button @click="getAiSuggestion" class="primary-button">
             <i class="fas fa-magic"></i> 获取推荐
@@ -50,7 +53,7 @@
         </div>
         <div class="ai-suggestion" v-if="aiSuggestion">
           <h3 class="suggestion-title">✨ AI推荐：</h3>
-          <p class="suggestion-content">{{ aiSuggestion }}</p>
+          <p class="suggestion-content" style="white-space: pre-line; text-align: left;">{{ aiSuggestion }}</p>
         </div>
       </div>
     </section>
@@ -111,11 +114,13 @@ export default {
       }
     },
     async addSpot() {
+      console.log('addSpot called');
       if (!this.newSpotName.trim()) {
         alert('请输入景点名称')
         return
       }
       try {
+        console.log('即将调用api.addSavedSpot', this.newSpotName);
         await api.addSavedSpot({ name: this.newSpotName })
         this.newSpotName = ''
         await this.fetchSavedSpots()

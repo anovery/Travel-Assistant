@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from attraction import get_ai_suggestion
 
 app = Flask(__name__)
 CORS(app)  # 允许所有跨域请求
@@ -38,9 +39,12 @@ def delete_saved_spot(spot_id):
 
 @app.route('/api/ai/suggest', methods=['POST'])
 def ai_suggest():
-
-    # 这里只是模拟推荐结果，改为调用真实 AI 模型
-    return jsonify({ 'suggestion': '你可以去张家界，风景很美！' })
+    data = request.get_json()
+    location = data.get('location')
+    if not location:
+        return jsonify({'error': '缺少location参数'}), 400
+    suggestion = get_ai_suggestion(location)
+    return jsonify({'suggestion': suggestion})
 
 if __name__ == '__main__':
     app.run(debug=True)
