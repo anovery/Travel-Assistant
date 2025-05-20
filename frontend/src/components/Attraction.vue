@@ -2,7 +2,7 @@
 <template>
   <div class="container">
 
-    <!-- 上方：SearchBox 模块 -->
+    <!-- 小红书搜索模块 -->
     <section class="search-section">
       <div class="search-card">
         <h2 class="section-title">“小红书”一下</h2>
@@ -11,30 +11,54 @@
       </div>
     </section>
 
-    <!-- 下方并列布局：添加景点 & AI 建议 -->
-    <section class="action-section">
-      <!-- 左侧：添加景点 -->
-      <div class="action-card">
-        <div class="card-header">
-          <i class="icon fas fa-plus-circle"></i>
-          <h2 class="section-title">添加景点</h2>
+    <!-- 下方模块布局：左侧为 添加+收藏，右侧为AI推荐 -->
+    <section class="action-section combined-layout">
+
+      <!-- 左侧：添加 + 收藏模块 -->
+      <div class="left-panel">
+        <div class="action-card">
+          <div class="card-header">
+            <i class="icon fas fa-plus-circle"></i>
+            <h2 class="section-title">添加景点</h2>
+          </div>
+          <div class="input-group">
+            <input
+              v-model="newSpotName"
+              type="text"
+              placeholder="输入景点名称"
+              class="styled-input"
+              @keyup.enter="addSpot"
+            />
+            <button @click="addSpot" class="primary-button">
+              <i class="fas fa-plus"></i> 添加
+            </button>
+          </div>
         </div>
-        <div class="input-group">
-          <input
-            v-model="newSpotName"
-            type="text"
-            placeholder="输入景点名称"
-            class="styled-input"
-            @keyup.enter="addSpot"
-          />
-          <button @click="addSpot" class="primary-button">
-            <i class="fas fa-plus"></i> 添加
-          </button>
+
+        <!-- 收藏模块 -->
+        <div class="saved-spots">
+
+          <div v-if="savedSpots.length > 0" class="spot-list">
+            <div v-for="spot in savedSpots" :key="spot.id" class="spot-item">
+              <div class="spot-info">
+                <i class="fas fa-map-marker-alt spot-icon"></i>
+                <span class="spot-name">{{ spot.name }}</span>
+              </div>
+              <button @click="removeSpot(spot.id)" class="remove-button">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+          </div>
+          <div v-else class="empty-state">
+            <i class="far fa-compass empty-icon"></i>
+            <p>暂无收藏景点</p>
+            <p class="empty-hint">添加您想去的景点开始您的旅行计划吧</p>
+          </div>
         </div>
       </div>
 
-      <!-- 右侧：AI 建议 -->
-      <div class="action-card">
+      <!-- 右侧：AI 推荐模块 -->
+      <div class="right-panel action-card">
         <div class="card-header">
           <i class="icon fas fa-robot"></i>
           <h2 class="section-title">AI景点助手</h2>
@@ -48,42 +72,29 @@
             @keyup.enter="getAiSuggestion"
           />
           <button @click="getAiSuggestion" class="primary-button">
-            <i class="fas fa-magic"></i> 获取推荐
+            <i class="fas fa-magic"></i> 
           </button>
         </div>
-        <div class="ai-suggestion" v-if="aiSuggestion">
-          <h3 class="suggestion-title">✨ AI推荐：</h3>
-          <p class="suggestion-content" style="white-space: pre-line; text-align: left;">{{ aiSuggestion }}</p>
+        
+        <!-- 显示加载动画 -->
+        <div v-if="loading" class="ai-suggestion loading-spinner">
+          <i class="fas fa-spinner fa-spin"></i> 正在为您生成推荐...
         </div>
-      </div>
-    </section>
 
-    <!-- 用户保存的景点 -->
-    <section class="saved-spots">
-      <div class="card-header">
-        <i class="icon fas fa-heart"></i>
-        <h2 class="section-title">我的收藏景点</h2>
-      </div>
-      
-      <div v-if="savedSpots.length > 0" class="spot-list">
-        <div v-for="spot in savedSpots" :key="spot.id" class="spot-item">
-          <div class="spot-info">
-            <i class="fas fa-map-marker-alt spot-icon"></i>
-            <span class="spot-name">{{ spot.name }}</span>
-          </div>
-          <button @click="removeSpot(spot.id)" class="remove-button">
-            <i class="fas fa-times"></i>
-          </button>
+        <!-- 显示 AI 推荐结果 -->
+        <div class="ai-suggestion" v-if="!loading && aiSuggestion">
+          <h3 class="suggestion-title">✨ AI推荐：</h3>
+          <p class="suggestion-content" style="white-space: pre-line; text-align: left;">
+            {{ aiSuggestion }}
+          </p>
         </div>
+
       </div>
-      <div v-else class="empty-state">
-        <i class="far fa-compass empty-icon"></i>
-        <p>暂无收藏景点</p>
-        <p class="empty-hint">添加您想去的景点开始您的旅行计划吧</p>
-      </div>
+
     </section>
   </div>
 </template>
+
 
 <script>
 import SearchBox from './SearchBox.vue'
@@ -98,7 +109,8 @@ export default {
       savedSpots: [],
       newSpotName: '',
       locationInput: '',
-      aiSuggestion: ''
+      aiSuggestion: '',
+      loading: false
     }
   },
   async created() {
@@ -141,12 +153,18 @@ export default {
         alert('请输入您的位置')
         return
       }
+
+      this.loading = true
+      this.aiSuggestion = '' // 清空旧推荐
+
       try {
         const response = await api.getAiSuggestion(this.locationInput)
         this.aiSuggestion = response.data.suggestion
       } catch (error) {
         console.error('获取AI推荐失败:', error)
         this.aiSuggestion = '获取推荐失败，请稍后重试'
+      } finally {
+        this.loading = false
       }
     }
   }
@@ -213,7 +231,7 @@ body {
 /* 卡片通用样式 */
 .search-card, .action-card, .saved-spots {
   background: var(--card-bg);
-  border-radius: var(--border-radius);
+  border-radius: 16px;
   box-shadow: var(--shadow);
   padding: 30px;
   margin-bottom: 30px;
@@ -409,5 +427,34 @@ body {
   margin-top: 10px;
   color: #ADB5BD;
 }
+
+.combined-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.right-panel {
+  align-self: start;
+}
+
+.loading-spinner {
+  color: var(--accent-color);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loading-spinner i {
+  font-size: 1.2rem;
+}
+
 
 </style>
