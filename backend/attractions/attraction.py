@@ -1,5 +1,4 @@
 from flask import Blueprint, jsonify, request
-# DeepSeek 官方 Python SDK
 from openai import OpenAI
 
 attraction_bp = Blueprint('attraction', __name__)
@@ -30,7 +29,6 @@ def delete_saved_spot(spot_id):
     saved_spots = [spot for spot in saved_spots if spot['id'] != spot_id]
     return jsonify({'success': True})
 
-# AI景点助手接口（DeepSeek大模型接入）
 @attraction_bp.route('/api/ai/suggest', methods=['POST'])
 def ai_suggest():
     data = request.get_json()
@@ -56,8 +54,6 @@ def get_ai_suggestion(location):
             stream=False
         )
         result = response.choices[0].message.content.strip()
-        # 后处理：只保留景点名称列表
-        # 以逗号分割，去除空白
         spots = [name.strip() for name in result.split('，') if name.strip()]
         return '，'.join(spots)
     except Exception as e:
