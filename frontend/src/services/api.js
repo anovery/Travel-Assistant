@@ -21,6 +21,19 @@ export default {
   },
   getAiSuggestion(location) {
     return apiClient.post('/ai/suggest', { location })
+  },
+  // 交通相关API
+  searchTransport(params) {
+    return apiClient.post('/transport/search', params)
+  },
+  getSavedRoutes() {
+    return apiClient.get('/saved_routes')
+  },
+  saveRoute(route) {
+    return apiClient.post('/saved_routes', route)
+  },
+  deleteRoute(routeId) {
+    return apiClient.delete(`/saved_routes/${routeId}`)
   }
 }
 
