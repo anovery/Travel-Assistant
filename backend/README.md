@@ -1,0 +1,10 @@
+# Backend
+
+## API KEY
+
+请在./backend加入.env文件，格式如下：
+
+```
+AMAP_BACKEND_KEY=Your_AMAP_WEB_SERVICE_KEY
+AMAP_JS_SECURITY_KEY=YOUR_AMAP_JS_SECURITY_KEY
+```
