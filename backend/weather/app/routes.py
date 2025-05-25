@@ -4,6 +4,10 @@ from .weather_api import get_weather_forecast
 import  requests
 import json
 from datetime import datetime,timedelta
+from dotenv import load_dotenv
+import os
+load_dotenv(dotenv_path='../.env')
+#加载load_dotenv方法
 #转换时间
 def to_utc_iso(date_str, hour=0):
     # date_str: "2025-05-19", hour: 0 或 23
@@ -34,7 +38,10 @@ def get_advice():
 
     if not weather_data:
         return jsonify({"error": "缺少天气数据"}), 400
-
+    # 读取 .env 中的 key
+    moonshot_api_key = os.getenv("MOONSHOT_API_KEY")
+    if not moonshot_api_key:
+        return jsonify({"error": "后端配置错误，缺少 Kimi API Key"}), 500
     # 构造简洁 prompt，总结天气 + 请求建议
     prompt = "我将在以下时间段出行，总结一些天气状况，并请根据天气数据给出穿衣建议和行李建议：\n\n"
     for item in weather_data[:6]:  # 取前6个小时数据防止 prompt 太长
@@ -47,7 +54,7 @@ def get_advice():
 
     url = "https://api.moonshot.cn/v1/chat/completions"
     headers = {
-        "Authorization": "sk-m4xFY5M08vLqaRvUUdth2xBWBK8DKHTmXMUddB3iKrDU0dJz",  # ← 替换为你的实际密钥
+        "Authorization": f"{moonshot_api_key}",  # ← 替换为你的实际密钥
         "Content-Type": "application/json"
     }
     payload = {
