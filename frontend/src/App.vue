@@ -13,10 +13,35 @@
 
 <script>
 import Sidebar from './components/Sidebar.vue'
+import api from './services/api'
+import { ref, provide } from 'vue'
 
 export default {
   components: {
     Sidebar
+  },
+  setup() {
+    const savedSpots = ref([])
+    
+    // 提供savedSpots数据给所有子组件
+    provide('savedSpots', savedSpots)
+    
+    // 定义更新savedSpots的方法并提供给子组件
+    const updateSavedSpots = async () => {
+      try {
+        const response = await api.getSavedSpots()
+        savedSpots.value = response.data
+      } catch (error) {
+        console.error('获取收藏景点失败:', error)
+      }
+    }
+    
+    provide('updateSavedSpots', updateSavedSpots)
+    
+    // 初始化时获取数据
+    updateSavedSpots()
+    
+    return {}
   }
 }
 </script>

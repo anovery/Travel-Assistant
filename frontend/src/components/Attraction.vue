@@ -99,10 +99,18 @@
 <script>
 import SearchBox from './SearchBox.vue'
 import api from '../services/api'
+import { inject } from 'vue'
 
 export default {
   components: {
     SearchBox
+  },
+  setup() {
+    // 注入提供的savedSpots引用和更新方法
+    const savedSpots = inject('savedSpots')
+    const updateSavedSpots = inject('updateSavedSpots')
+    
+    return { updateSavedSpots }
   },
   data() {
     return {
@@ -119,6 +127,10 @@ export default {
   methods: {
     async fetchSavedSpots() {
       try {
+        // 使用App.vue提供的更新方法
+        await this.updateSavedSpots()
+        
+        // 从api获取数据以保持原有功能
         const response = await api.getSavedSpots()
         this.savedSpots = response.data
       } catch (error) {
@@ -144,6 +156,8 @@ export default {
       try {
         await api.deleteSavedSpot(spotId)
         this.savedSpots = this.savedSpots.filter(spot => spot.id !== spotId)
+        // 更新共享的savedSpots数据
+        await this.updateSavedSpots()
       } catch (error) {
         console.error('删除景点失败:', error)
       }

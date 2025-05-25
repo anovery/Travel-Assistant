@@ -13,6 +13,7 @@
       <label>计划旅行天数：</label>
       <input type="number" v-model.number="days" min="1" max="30" />
       <span class="hint"></span>
+      <button @click="clearAllPlans" class="clear-all-btn">清空所有行程</button>
     </div>
     <div class="tip-text">点击便签底部为每日增加行程</div>
     <div class="notes-row">
@@ -51,12 +52,26 @@
           </template>
         </draggable>
         <div v-if="showInputIdx === idx" class="add-row">
-          <input
-            :ref="setAddInputRef(idx)"
-            v-model="newPlan[idx]"
-            @keyup.enter="confirmAddPlan(idx)"
-            placeholder="添加行程..."
-          />
+          <div class="plan-input-wrapper">
+            <input
+              :ref="setAddInputRef(idx)"
+              v-model="newPlan[idx]"
+              @keydown.enter.prevent="confirmAddPlan(idx)"
+              placeholder="添加行程..."
+              @focus="showPlanSpotDropdown = true"
+              @blur="hidePlanSpotDropdown"
+            />
+             <div v-if="showPlanSpotDropdown && savedSpots && savedSpots.length > 0" class="spots-dropdown">
+              <div
+                v-for="spot in savedSpots"
+                :key="spot.id"
+                class="spot-item"
+                @mousedown.prevent="selectPlanSpot(idx, spot.name)"
+              >
+                <i class="fas fa-map-marker-alt"></i> {{ spot.name }}
+              </div>
+            </div>
+          </div>
           <button @click="confirmAddPlan(idx)"><span class="confirm-text">确&nbsp;认</span></button>
         </div>
         <button :class="['add-btn', addBtnColorClass(idx)]" @click="showAddInput(idx)">＋</button>
@@ -66,8 +81,11 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, inject, onMounted, onBeforeUnmount } from 'vue'
 import draggable from 'vuedraggable'
+
+// 注入提供的savedSpots引用
+const savedSpots = inject('savedSpots', []);
 
 const days = ref(1)
 const dayPlans = ref([[]])
@@ -76,6 +94,47 @@ const showInputIdx = ref(-1)
 const addInputRefs = ref([])
 const editingIdx = ref({ day: -1, plan: -1 })
 const editingValue = ref('')
+const showPlanSpotDropdown = ref(false);
+
+// 从本地存储加载数据
+onMounted(() => {
+  const savedDays = localStorage.getItem('tripPlanDays')
+  const savedDayPlans = localStorage.getItem('tripPlanData')
+  
+  if (savedDays) {
+    days.value = parseInt(savedDays)
+  }
+  
+  if (savedDayPlans) {
+    try {
+      dayPlans.value = JSON.parse(savedDayPlans)
+      // 确保newPlan数组长度与dayPlans匹配
+      if (newPlan.value.length < dayPlans.value.length) {
+        for (let i = newPlan.value.length; i < dayPlans.value.length; i++) {
+          newPlan.value.push('')
+        }
+      }
+    } catch (e) {
+      console.error('加载行程数据失败:', e)
+    }
+  }
+})
+
+// 保存数据到本地存储
+function savePlansToStorage() {
+  localStorage.setItem('tripPlanDays', days.value.toString())
+  localStorage.setItem('tripPlanData', JSON.stringify(dayPlans.value))
+}
+
+// 监听dayPlans变化，保存到本地存储
+watch(dayPlans, () => {
+  savePlansToStorage()
+}, { deep: true })
+
+// 监听days变化，保存到本地存储
+watch(days, () => {
+  savePlansToStorage()
+})
 
 function setAddInputRef(idx) {
   return (el) => {
@@ -111,11 +170,13 @@ function showAddInput(idx) {
   })
 }
 function confirmAddPlan(idx) {
+  console.log('confirmAddPlan called', idx);
   const plan = newPlan.value[idx]?.trim()
   if (plan) {
     dayPlans.value[idx].push(plan)
     newPlan.value[idx] = ''
     showInputIdx.value = -1
+    showPlanSpotDropdown.value = false;
   }
 }
 function deletePlan(dayIdx, planIdx) {
@@ -156,6 +217,33 @@ function saveEdit(dayIdx, planIdx) {
   }
   editingIdx.value = { day: -1, plan: -1 }
   editingValue.value = ''
+}
+
+function selectPlanSpot(idx, spotName) {
+  console.log('selectPlanSpot called', idx, spotName);
+  newPlan.value[idx] = spotName;
+  // 直接调用confirmAddPlan来添加行程
+  confirmAddPlan(idx);
+}
+
+function hidePlanSpotDropdown() {
+  // 增加延迟，避免与点击事件冲突
+  setTimeout(() => {
+    // 只有在没有选择项目时才关闭下拉菜单
+    if (!newPlan.value[showInputIdx.value]?.trim()) {
+      showPlanSpotDropdown.value = false;
+    }
+  }, 300);
+}
+
+function clearAllPlans() {
+  if (confirm('确定要清空所有行程数据吗？此操作不可恢复！')) {
+    days.value = 1;
+    dayPlans.value = [[]];
+    newPlan.value = [''];
+    localStorage.removeItem('tripPlanDays');
+    localStorage.removeItem('tripPlanData');
+  }
 }
 </script>
 
@@ -302,7 +390,7 @@ h1 {
   transition: color 0.2s;
 }
 .del-item-btn:hover {
-  color: #e35d6a;
+  color:rgba(235, 140, 150, 0.85);
 }
 .add-row {
   display: flex;
@@ -313,13 +401,16 @@ h1 {
   width: 100%;
   padding: 0 8px; /* 添加左右内边距 */
 }
-.add-row input {
+.plan-input-wrapper {
   flex: 1;
+  position: relative; /* Needed for absolute positioning of the dropdown */
+}
+.add-row input {
+  width: 100%;
   padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #bbb;
   font-size: 0.9rem; /* 调小字体 */
-  max-width: 150px; /* 限制宽度 */
 }
 .add-row button {
   background: #f3f3f3;
@@ -335,6 +426,29 @@ h1 {
 .add-row button:hover {
   background: #1976d2;
   color: #fff;
+}
+.spots-dropdown {
+  position: absolute;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  width: 100%;
+  margin-top: 4px;
+}
+.spots-dropdown .spot-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+}
+.spots-dropdown .spot-item:hover {
+  background: #f0f0f0;
 }
 .confirm-text {
   letter-spacing: 0.2em;
@@ -413,6 +527,28 @@ h1 {
 .editable-plan:hover {
   color: #1976d2;
 }
+
+.clear-all-btn {
+  background: rgba(235, 140, 150, 0.15);
+  color: #7b8fa6;
+  border: 1px solid rgba(235, 140, 150, 0.3);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 16px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.clear-all-btn:hover {
+  background: rgba(235, 140, 150, 0.25);
+  color: #e35d6a;
+  border-color: rgba(235, 140, 150, 0.5);
+  transform: translateY(-1px);
+}
+
 @media (max-width: 900px) {
   .notes-row {
     gap: 18px;

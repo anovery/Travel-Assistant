@@ -43,10 +43,10 @@
               type="text" 
               class="form-control" 
               placeholder="请输入起点"
-              @focus="showOriginSpots = true"
+              @focus="showSpotDropdown('origin')"
               @blur="hideOriginSpots"
             />
-            <div v-if="showOriginSpots && savedSpots.length > 0" class="spots-dropdown">
+            <div v-if="showOriginSpots && savedSpots && savedSpots.length > 0" class="spots-dropdown">
               <div 
                 v-for="spot in savedSpots" 
                 :key="spot.id" 
@@ -68,10 +68,10 @@
               type="text" 
               class="form-control" 
               placeholder="请输入终点"
-              @focus="showDestSpots = true"
+              @focus="showSpotDropdown('destination')"
               @blur="hideDestSpots"
             />
-            <div v-if="showDestSpots && savedSpots.length > 0" class="spots-dropdown">
+            <div v-if="showDestSpots && savedSpots && savedSpots.length > 0" class="spots-dropdown">
               <div 
                 v-for="spot in savedSpots" 
                 :key="spot.id" 
@@ -90,6 +90,11 @@
       </button>
     </div>
     
+    <!-- 查询路线加载动画 -->
+    <div v-if="loading" class="ai-suggestion loading-spinner">
+      <i class="fas fa-spinner fa-spin"></i> 正在为您查询路线...
+    </div>
+
     <!-- 结果展示区域 -->
     <div v-if="routes" class="results-container">
       <!-- 左侧路线选项 -->
@@ -175,8 +180,14 @@ import api from '../services/api'
 import MapService from '../services/MapService'
 import RouteUtils from '../utils/RouteUtils'
 import '../assets/styles/transport.css'
+import { inject } from 'vue';
 
 export default {
+  setup() {
+    // 注入提供的savedSpots引用
+    const savedSpots = inject('savedSpots', []);
+    return { savedSpots };
+  },
   data() {
     return {
       // 输入参数
@@ -187,7 +198,6 @@ export default {
       timeError: '',
       
       // 景点选择
-      savedSpots: [],
       showOriginSpots: false,
       showDestSpots: false,
       
@@ -200,11 +210,13 @@ export default {
       isSaving: false,
       
       // 地图服务实例
-      mapService: null
+      mapService: null,
+      
+      // 加载动画
+      loading: false
     }
   },
   async created() {
-    await this.fetchSavedSpots()
     await this.fetchSavedRoutes()
     
     // 创建地图服务实例
@@ -230,17 +242,17 @@ export default {
     });
   },
   methods: {
-    // 修复: 使用方法替代template中的setTimeout
+    showSpotDropdown(type) {
+      if (type === 'origin') this.showOriginSpots = true;
+      else this.showDestSpots = true;
+    },
+    // 修复: 使用方法替代template中的setTimeout 并增加延迟确保点击事件能触发
     hideOriginSpots() {
-      setTimeout(() => {
-        this.showOriginSpots = false;
-      }, 200);
+      setTimeout(() => { this.showOriginSpots = false; }, 200);
     },
     
     hideDestSpots() {
-      setTimeout(() => {
-        this.showDestSpots = false;
-      }, 200);
+      setTimeout(() => { this.showDestSpots = false; }, 200);
     },
     
     // 初始化地图
@@ -249,16 +261,6 @@ export default {
         await this.mapService.initMap(this.$refs.mapContainer);
       } catch (error) {
         console.error('地图初始化失败:', error);
-      }
-    },
-    
-    // 获取保存的景点
-    async fetchSavedSpots() {
-      try {
-        const response = await api.getSavedSpots()
-        this.savedSpots = response.data
-      } catch (error) {
-        console.error('获取收藏景点失败:', error)
       }
     },
     
@@ -321,6 +323,7 @@ export default {
         return
       }
       
+      this.loading = true;
       try {
         const response = await api.searchTransport({
           city: this.city,
@@ -343,6 +346,8 @@ export default {
       } catch (error) {
         console.error('查询路线失败', error)
         alert('查询路线失败，请重试')
+      } finally {
+        this.loading = false;
       }
     },
     
@@ -418,3 +423,62 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* 下拉菜单样式 */
+.location-input-wrapper {
+  position: relative;
+}
+
+.spots-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  margin-top: 4px;
+}
+
+.spot-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+}
+
+.spot-item:hover {
+  background: #f0f0f0;
+}
+
+.spot-item i {
+  margin-right: 8px;
+  color: #2196F3;
+}
+
+/* AI建议和加载动画样式 */
+.ai-suggestion {
+  background: rgba(76, 201, 240, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  border-left: 4px solid var(--accent-color);
+}
+.loading-spinner {
+  color: var(--accent-color);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.loading-spinner i {
+  font-size: 1.2rem;
+}
+</style>
