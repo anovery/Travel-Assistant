@@ -1,6 +1,12 @@
 import requests
 from datetime import datetime
-API_KEY = "Bs0KaySwrzLBOAgPH15ygWkZHUNZAQuG"
+import os
+from dotenv import load_dotenv
+
+# 加载环境变量（注意路径，根据你的位置可能要写 '../.env'）
+load_dotenv(dotenv_path='../.env')  # 如果 app.py 在 backend 文件夹里
+
+API_KEY = os.getenv("TOMORROW_API_KEY")
 
 def filter_by_time(data, start, end):
     start_dt = datetime.strptime(start, "%Y-%m-%dT%H:%M:%SZ")
