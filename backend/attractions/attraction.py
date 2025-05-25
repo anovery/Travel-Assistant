@@ -1,8 +1,12 @@
 from flask import Blueprint, jsonify, request
 from openai import OpenAI
+import os
+
+
+from dotenv import load_dotenv
+load_dotenv(dotenv_path='../.env')  # 确保路径正确，针对 backend 目录
 
 attraction_bp = Blueprint('attraction', __name__)
-
 # 用于存储景点的内存列表
 saved_spots = []
 next_id = 1
@@ -43,8 +47,11 @@ def get_ai_suggestion(location):
         f"请只返回{location}最值得推荐的3个著名旅游景点的名称，"
         f"不要用markdown语法，用中文逗号分隔，每个景点加编号和一句简短的介绍（例如：1. 外滩，上海的地标性景点，欣赏黄浦江两岸的壮丽景色。2. 豫园，江南古典园林的代表，体验传统建筑和园林艺术。3. 东方明珠塔，上海的象征之一，俯瞰城市全景的绝佳地点。）每个景点之间有回车换行隔开。"
     )
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    if not api_key:
+        return f"{location}推荐景点：无法获取密钥，后端配置错误"
     try:
-        client = OpenAI(api_key="sk-e64095753f90402a9d418a96ff941658", base_url="https://api.deepseek.com")
+        client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
