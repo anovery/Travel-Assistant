@@ -2,7 +2,6 @@ import requests
 from datetime import datetime
 import os
 from dotenv import load_dotenv
-#API_KEY = "Bs0KaySwrzLBOAgPH15ygWkZHUNZAQuG"
 
 # 加载环境变量（注意路径，根据你的位置可能要写 '../.env'）
 load_dotenv(dotenv_path='../.env')  # 如果 app.py 在 backend 文件夹里
