@@ -15,6 +15,6 @@ dist/
 .DS_Store
 Thumbs.db
 
-# API Key & other staff 
+# Other staff 
 mapConfig.js 
 ask.md  

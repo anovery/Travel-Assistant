@@ -15,7 +15,7 @@
       <span class="hint"></span>
     </div>
     <div class="tip-text">点击便签底部为每日增加行程</div>
-    <div class="notes-row">
+    <div class="notes-row" ref="planNotesContainer">
       <div
         v-for="(day, idx) in dayPlans"
         :key="idx"
@@ -62,12 +62,21 @@
         <button :class="['add-btn', addBtnColorClass(idx)]" @click="showAddInput(idx)">＋</button>
       </div>
     </div>
+    
+    <!-- 导出按钮在页面底部，与标题竖直对齐 -->
+    <div class="export-section-bottom">
+      <button @click="exportToPDF" class="export-btn" :disabled="isExporting">
+        {{ isExporting ? '导出中...' : '导出' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, watch, nextTick } from 'vue'
 import draggable from 'vuedraggable'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 const days = ref(1)
 const dayPlans = ref([[]])
@@ -76,6 +85,8 @@ const showInputIdx = ref(-1)
 const addInputRefs = ref([])
 const editingIdx = ref({ day: -1, plan: -1 })
 const editingValue = ref('')
+const isExporting = ref(false)
+const planNotesContainer = ref(null)
 
 function setAddInputRef(idx) {
   return (el) => {
@@ -157,6 +168,196 @@ function saveEdit(dayIdx, planIdx) {
   editingIdx.value = { day: -1, plan: -1 }
   editingValue.value = ''
 }
+
+// PDF导出功能
+async function exportToPDF() {
+  if (isExporting.value) return
+  
+  try {
+    isExporting.value = true
+    
+    // 确保没有正在编辑的状态
+    if (editingIdx.value.day !== -1) {
+      editingIdx.value = { day: -1, plan: -1 }
+      editingValue.value = ''
+    }
+    
+    // 隐藏添加行程的输入框
+    const originalShowInputIdx = showInputIdx.value
+    showInputIdx.value = -1
+    
+    await nextTick()
+    
+    // 创建用于导出的内容容器
+    const exportContainer = createExportContainer()
+    document.body.appendChild(exportContainer)
+    
+    await nextTick()
+    
+    // 使用html2canvas截图
+    const canvas = await html2canvas(exportContainer, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff'
+    })
+    
+    // 移除临时容器
+    document.body.removeChild(exportContainer)
+    
+    // 创建PDF
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = pdf.internal.pageSize.getHeight()
+    
+    const imgWidth = pdfWidth
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width
+    
+    if (imgHeight <= pdfHeight) {
+      // 单页显示
+      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight)
+    } else {
+      // 多页显示
+      let yPosition = 0
+      const pageHeight = pdfHeight
+      
+      while (yPosition < imgHeight) {
+        // 创建当前页的canvas
+        const pageCanvas = document.createElement('canvas')
+        const pageCtx = pageCanvas.getContext('2d')
+        
+        pageCanvas.width = canvas.width
+        pageCanvas.height = (canvas.width * pageHeight) / imgWidth
+        
+        // 绘制当前页内容
+        pageCtx.drawImage(
+          canvas,
+          0, (yPosition * canvas.width) / imgWidth,
+          canvas.width, pageCanvas.height,
+          0, 0,
+          canvas.width, pageCanvas.height
+        )
+        
+        if (yPosition > 0) {
+          pdf.addPage()
+        }
+        
+        pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, pageHeight)
+        yPosition += pageHeight
+      }
+    }
+    
+    // 恢复原始状态
+    showInputIdx.value = originalShowInputIdx
+    
+    // 保存PDF
+    const fileName = `旅行行程规划_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`
+    pdf.save(fileName)
+    
+  } catch (error) {
+    console.error('导出PDF时发生错误:', error)
+    alert('导出PDF时发生错误，请重试')
+  } finally {
+    isExporting.value = false
+  }
+}
+
+// 创建用于导出的内容容器
+function createExportContainer() {
+  const container = document.createElement('div')
+  container.style.cssText = `
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: 800px;
+    background: #ffffff;
+    padding: 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `
+  
+  // 添加标题
+  const title = document.createElement('h1')
+  title.textContent = '旅行行程规划'
+  title.style.cssText = `
+    text-align: center;
+    font-size: 36px;
+    color: #2d3a4b;
+    margin-bottom: 40px;
+    letter-spacing: 2px;
+    font-weight: bold;
+  `
+  container.appendChild(title)
+  
+  // 创建便签网格
+  const notesGrid = document.createElement('div')
+  notesGrid.style.cssText = `
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  `
+  
+  dayPlans.value.forEach((dayPlan, idx) => {
+    const dayNote = createDayNoteElement(idx + 1, dayPlan)
+    notesGrid.appendChild(dayNote)
+  })
+  
+  container.appendChild(notesGrid)
+  return container
+}
+
+// 创建单个便签元素
+function createDayNoteElement(dayNumber, plans) {
+  const noteDiv = document.createElement('div')
+  const colorIndex = (dayNumber - 1) % 3
+  const backgrounds = ['#fffbe6', '#f0f7ff', '#fff0f6']
+  
+  noteDiv.style.cssText = `
+    background: ${backgrounds[colorIndex]};
+    border-radius: 20px;
+    border: 2px solid #e0e0e0;
+    padding: 20px;
+    min-height: 200px;
+    break-inside: avoid;
+  `
+  
+  // 添加标题
+  const header = document.createElement('div')
+  header.textContent = `Day ${dayNumber}`
+  header.style.cssText = `
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px 16px;
+    margin-bottom: 16px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #2d3a4b;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  `
+  noteDiv.appendChild(header)
+  
+  // 添加行程列表
+  plans.forEach((plan, index) => {
+    const planItem = document.createElement('div')
+    planItem.textContent = `${index + 1}. ${plan}`
+    planItem.style.cssText = `
+      background: #fff;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      color: #3a4a5b;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      line-height: 1.4;
+    `
+    noteDiv.appendChild(planItem)
+  })
+  
+  return noteDiv
+}
+
+
 </script>
 
 <style scoped>
@@ -170,7 +371,7 @@ function saveEdit(dayIdx, planIdx) {
   line-height: 1.7;
 }
 .trip-planner-container {
-  padding: 32px 0;
+  padding: 32px 32px 0 32px;
   background: #ffffff;
   min-height: 100vh;
   position: relative;
@@ -206,6 +407,36 @@ h1 {
   color: #888;
   font-size: 15px;
   margin-left: 8px;
+}
+.export-section-bottom {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+  margin-bottom: 32px;
+}
+.export-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+  letter-spacing: 1px;
+}
+.export-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+.export-btn:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 .tip-text {
   color: #7b8fa6;
@@ -438,6 +669,16 @@ h1 {
   .note-header {
     font-size: 1rem;
     padding: 6px 10px;
+  }
+  .trip-planner-container {
+    padding: 20px 16px 0 16px;
+  }
+  .export-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+  h1 {
+    font-size: 1.8rem;
   }
 }
 </style>
