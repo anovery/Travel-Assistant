@@ -34,6 +34,7 @@
 
       <div class="tool-card weather-display">
         <h3>🌤 天气预测</h3>
+        <p v-if="isLoading" style="color: #d32f2f; font-weight: bold;">正在为你更新天气信息...</p>
         <ul v-if="weatherResult && weatherResult.length">
           <li v-for="(item, index) in weatherResult" :key="index">
             📆 <strong>{{ formatTime(item.time) }}</strong><br />
@@ -57,7 +58,8 @@ export default {
       startDate: '',
       endDate: '',
       weatherResult: [],
-      travelAdvice: ''
+      travelAdvice: '',
+      isLoading: false
     }
   },
   methods: {
@@ -66,6 +68,7 @@ export default {
         alert("请输入完整的查询信息")
         return
       }
+      this.isLoading = true
       try {
         const response = await fetch('http://localhost:5000/api/weather', {
           method: 'POST',
@@ -82,7 +85,9 @@ export default {
       } catch (error) {
         alert("获取天气失败")
         console.error(error)
-      }
+      }finally {
+    this.isLoading = false  // 👈 加载结束
+  }
     },
     async fetchAdvice() {
       try {
@@ -110,15 +115,28 @@ export default {
     getWeatherDescription(code) {
       const weatherCodeMap = {
         1000: '晴朗',
+        1001: '多云',
         1100: '多云',
         1101: '部分多云',
         1102: '阴天',
-        2000: '雾',
+        2000: '有雾',
+        2100: '轻雾',
+        3000: '少风',
+        3001: '微风',
+        3002: '和风',
         4000: '小雨',
+        4001: '雨',
         4200: '零星小雨',
         4201: '暴雨',
-        5001: '小雪', 
-        5100: '小雪', 
+        5000: '小雪',
+        5001: '雪',
+        5100: '阵雪',
+        5101: '雪',
+        6000: '冰雹',
+        6200: '零星冰雹',
+        7000: '阵风',
+        7101: '大风',
+        8000: '雷暴',
         // Add more weather codes as needed
       }
       return weatherCodeMap[code] || '未知天气'
