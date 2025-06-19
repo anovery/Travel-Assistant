@@ -43,7 +43,7 @@
 .sidebar {
   width: 60px;
   min-width: 60px;
-  height: 100vh;
+  height: 100%;
   background: rgb(110, 138, 169);
   color: white;
   padding: 20px 0;

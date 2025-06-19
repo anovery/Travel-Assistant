@@ -69,8 +69,7 @@ body, html {
 /* 中央容器 */
 .central-container {
   width: 90%;
-  height: 90%;  justify-content: center;
-  align-items: center;
+  height: 90%;
   min-width: 1024px; /* 最小宽度保证内容不挤压 */
   max-width: 1600px; /* 最大宽度避免在大屏幕上过宽 */
   box-shadow: 0 4px 20px rgba(255, 255, 255, 0.03);
