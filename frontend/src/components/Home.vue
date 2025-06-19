@@ -37,6 +37,25 @@ export default {
 </script>
 
 <style scoped>
+.hero {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-size: 2.5rem;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.logo-icon {
+  width: 40px;
+  height: 40px;
+}
+
 .tool-sections {
   display: flex;
   flex-direction: column;
