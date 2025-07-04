@@ -24,18 +24,19 @@
         </div>
 
         <div class="tool-card result-card">
-          <h3>🧳 出行建议</h3>
+          <h3>🧳 Kimi 出行建议</h3>
           <div class="scroll-content">
-            <p v-if="travelAdvice">{{ travelAdvice }}</p>
+            <p v-if="isAdviceLoading" class="placeholder-text" style="color: #388e3c; font-weight: bold;">
+              天气已获取，正在为您生成出行建议...
+            </p>
+            <p v-else-if="travelAdvice" v-html="formattedAdvice"></p>
             <p v-else class="placeholder-text">查询天气后，这里会显示您的出行建议。</p>
-          </div>
+            </div>
         </div>
-      </div>
-
-      <div class="tool-card weather-display">
+      </div> <div class="tool-card weather-display">
         <h3>🌤 天气预测</h3>
-        <p v-if="isLoading" style="color: #d32f2f; font-weight: bold;">正在为你更新天气信息...</p>
-        <ul v-if="weatherResult && weatherResult.length">
+        <p v-if="isWeatherLoading" style="color: #d32f2f; font-weight: bold;">正在为你更新天气信息...</p>
+        <ul v-else-if="weatherResult && weatherResult.length">
           <li v-for="(item, index) in weatherResult" :key="index">
             📆 <strong>{{ formatTime(item.time) }}</strong><br />
             🌡 温度：{{ item.temperature }}°C，
@@ -45,10 +46,10 @@
           </li>
         </ul>
         <p v-else class="placeholder-text">选择地点和时间，然后点击查询以查看天气预测。</p>
-      </div>
-    </div>
-  </div>
-</template>
+      </div> 
+      </div> 
+      </div> 
+      </template>
 
 <script>
 export default {
@@ -59,16 +60,45 @@ export default {
       endDate: '',
       weatherResult: [],
       travelAdvice: '',
-      isLoading: false
+      isWeatherLoading: false, // 控制“天气加载”提示
+      isAdviceLoading: false   // 控制“建议加载”提示
+    }
+  },
+  computed: {
+    // 将换行符\n替换为HTML的<br>标签，以便正确显示
+    formattedAdvice() {
+      // 增加一个检查，确保 travelAdvice 是一个字符串
+      if (typeof this.travelAdvice === 'string') {
+        return this.travelAdvice.replace(/\n/g, '<br />');
+      }
+      return '';
     }
   },
   methods: {
     async fetchWeather() {
+      // 1. 前端输入校验 (这部分保持不变)
       if (!this.startDate || !this.endDate || !this.location) {
-        alert("请输入完整的查询信息")
-        return
+        alert("请输入完整的查询信息");
+        return;
       }
-      this.isLoading = true
+      if (new Date(this.endDate) < new Date(this.startDate)) {
+        alert("结束时间不能早于开始时间，请输入规范的时间范围！");
+        return;
+      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(this.startDate) < today || new Date(this.endDate) < today) {
+        alert("无法查询过去时间段，请重新输入");
+        return;
+      }
+
+      // 2. 重置状态和数据
+      this.isWeatherLoading = true;
+      this.isAdviceLoading = false; // 每次查询都重置建议加载状态
+      this.weatherResult = [];
+      this.travelAdvice = '';
+
+      // 3. 调用后端API
       try {
         const response = await fetch('http://localhost:5000/api/weather', {
           method: 'POST',
@@ -78,40 +108,77 @@ export default {
             end_date: this.endDate,
             location: this.location
           })
-        })
-        const data = await response.json()
-        this.weatherResult = data.weather
-        this.fetchAdvice()
+        });
+
+        // 天气API有响应后，立即关闭天气加载提示
+        this.isWeatherLoading = false;
+
+        // START: 新增 - 处理后端返回的错误（包括无效地址）
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (errorData.error === 'INVALID_LOCATION') {
+            alert("请输入规范的地点信息"); // 这里处理无效地址
+          } else {
+            alert(errorData.error || "获取天气失败，请稍后再试");
+          }
+          return; // 发现错误，停止执行
+        }
+        // END: 新增结束
+        
+        // 5. 处理成功的数据
+        const data = await response.json();
+        if (data.weather && data.weather.length > 0) {
+          this.weatherResult = data.weather;
+          this.fetchAdvice(); // 天气获取成功，才去获取建议
+        } else {
+          // 成功但天气数据为空，也视为一种无效地址的情况
+          alert("无法获取该地点的天气信息，请检查地点名称是否正确");
+          this.weatherResult = [];
+        }
+
       } catch (error) {
-        alert("获取天气失败")
-        console.error(error)
-      }finally {
-    this.isLoading = false  // 👈 加载结束
-  }
+        // 处理网络请求本身的失败 (如服务器关闭)
+        this.isWeatherLoading = false;
+        alert("网络请求失败，请检查服务是否运行");
+        console.error(error);
+      }
     },
+
     async fetchAdvice() {
+      this.isAdviceLoading = true; // START: 新增 - 开启“正在生成建议”提示
       try {
         const response = await fetch('http://localhost:5000/api/advice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ weather: this.weatherResult })
-        })
-        const data = await response.json()
-        this.travelAdvice = data.advice
+        });
+        
+        if (!response.ok) {
+           const errData = await response.json();
+           throw new Error(errData.error || "建议服务出错");
+        }
+
+        const data = await response.json();
+        this.travelAdvice = data.advice;
       } catch (err) {
-        console.error("获取出行建议失败", err)
+        console.error("获取出行建议失败", err);
+        this.travelAdvice = `抱歉，无法生成出行建议。\n错误: ${err.message}`;
+      } finally {
+        this.isAdviceLoading = false; // END: 新增 - 无论成功或失败，最后都关闭提示
       }
     },
+
     formatTime(isoString) {
-      const date = new Date(isoString)
+      const date = new Date(isoString);
       return date.toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
-      })
+      });
     },
+
     getWeatherDescription(code) {
       const weatherCodeMap = {
         1000: '晴朗',
@@ -121,9 +188,6 @@ export default {
         1102: '阴天',
         2000: '有雾',
         2100: '轻雾',
-        3000: '少风',
-        3001: '微风',
-        3002: '和风',
         4000: '小雨',
         4001: '雨',
         4200: '零星小雨',
@@ -132,14 +196,9 @@ export default {
         5001: '雪',
         5100: '阵雪',
         5101: '雪',
-        6000: '冰雹',
-        6200: '零星冰雹',
-        7000: '阵风',
-        7101: '大风',
         8000: '雷暴',
-        // Add more weather codes as needed
-      }
-      return weatherCodeMap[code] || '未知天气'
+      };
+      return weatherCodeMap[code] || '未知天气';
     }
   }
 }
