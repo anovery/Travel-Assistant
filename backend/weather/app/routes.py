@@ -1,50 +1,67 @@
 # app/routes.py
+
 from flask import Blueprint, request, jsonify
-from .weather_api import get_weather_forecast
-import  requests
+from .weather_api import get_weather_forecast  # ✨ 确认这个导入是正确的
+import requests
 import json
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import os
+
 load_dotenv(dotenv_path='../.env')
-#加载load_dotenv方法
-#转换时间
+
 def to_utc_iso(date_str, hour=0):
-    # date_str: "2025-05-19", hour: 0 或 23
+    # ... 此函数无需修改 ...
     local_time = datetime.strptime(date_str, "%Y-%m-%d").replace(hour=hour)
-    # 假设本地时间是北京时间 UTC+8，减去 8 小时得到 UTC
     utc_time = local_time - timedelta(hours=8)
     return utc_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
 routes = Blueprint('routes', __name__)
+
 
 @routes.route('/api/weather', methods=['POST'])
 def weather():
     data = request.get_json()
     location = data.get("location")
-    start = to_utc_iso(data.get("start_date"), hour=0)   # 00:00
-    end = to_utc_iso(data.get("end_date"), hour=23)     # 23:00
+    start = to_utc_iso(data.get("start_date"), hour=0)
+    end = to_utc_iso(data.get("end_date"), hour=23)
 
     if not location or not start or not end:
         return jsonify({"error": "缺少参数"}), 400
 
-    result = get_weather_forecast(location, start, end)
-    print("返回的天气数据：", result)
-    return jsonify(result)
+    #  解包从 get_weather_forecast 返回的元组
+    result_data, error_type = get_weather_forecast(location, start, end)
 
+    #  根据 error_type 判断如何响应
+    if error_type == "INVALID_LOCATION":
+        # 如果是无效地点错误，返回我们和前端约定的JSON
+        return jsonify({"error": "INVALID_LOCATION"}), 400
+    
+    elif error_type == "API_ERROR":
+        # 如果是其他API错误，返回一个通用的服务器错误
+        return jsonify({"error": "天气服务暂时不可用，请稍后再试"}), 503 # 503 Service Unavailable 更合适
+
+    # 如果没有错误 (error_type is None)，正常返回天气数据
+    print("返回的天气数据：", result_data)
+    return jsonify(result_data)
+
+
+# ... /api/advice 路由无需修改 ...
 @routes.route('/api/advice', methods=['POST'])
 def get_advice():
+    # ... 此处代码保持不变 ...
     data = request.get_json()
     weather_data = data.get("weather")
 
     if not weather_data:
         return jsonify({"error": "缺少天气数据"}), 400
-    # 读取 .env 中的 key
+    
     moonshot_api_key = os.getenv("MOONSHOT_API_KEY")
     if not moonshot_api_key:
         return jsonify({"error": "后端配置错误，缺少 Kimi API Key"}), 500
-    # 构造简洁 prompt，总结天气 + 请求建议
+    
     prompt = "我将在以下时间段出行，总结一些天气状况，并请根据天气数据给出穿衣建议和行李建议：\n\n"
-    for item in weather_data[:6]:  # 取前6个小时数据防止 prompt 太长
+    for item in weather_data[:6]:
         time = item.get("time", "未知时间")
         temp = item.get("temperature", "未知")
         rain = item.get("precipitationProbability", "未知")
@@ -54,7 +71,7 @@ def get_advice():
 
     url = "https://api.moonshot.cn/v1/chat/completions"
     headers = {
-        "Authorization": f"{moonshot_api_key}",  # ← 替换为你的实际密钥
+        "Authorization": f"{moonshot_api_key}",
         "Content-Type": "application/json"
     }
     payload = {
