@@ -150,6 +150,11 @@ export default {
         await this.fetchSavedSpots()
       } catch (error) {
         console.error('添加景点失败:', error)
+        if (error.response && error.response.data && error.response.data.error) {
+          alert(error.response.data.error)
+        } else {
+          alert('添加景点失败，请稍后重试')
+        }
       }
     },
     async removeSpot(spotId) {
@@ -176,7 +181,11 @@ export default {
         this.aiSuggestion = response.data.suggestion
       } catch (error) {
         console.error('获取AI推荐失败:', error)
-        this.aiSuggestion = '获取推荐失败，请稍后重试'
+        if (error.response && error.response.data && error.response.data.error) {
+          this.aiSuggestion = error.response.data.error
+        } else {
+          this.aiSuggestion = '获取推荐失败，请稍后重试'
+        }
       } finally {
         this.loading = false
       }
@@ -407,7 +416,7 @@ body {
   background: none;
   border: none;
   color: #FF6B6B;
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -415,7 +424,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: var(--transition);
+  padding: 0;
+  line-height: 1;
+  position: relative;
+}
+
+.remove-button i {
+  display: inline-block;
+  position: relative;
+  left: 3.5px; /* 向右微调使其视觉居中 */
 }
 
 .remove-button:hover {

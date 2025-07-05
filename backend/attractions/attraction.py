@@ -22,6 +22,10 @@ def add_saved_spot():
     name = data.get('name')
     if not name:
         return jsonify({'error': '景点名称不能为空'}), 400
+    # 新增：判断是否已存在同名景点
+    for spot in saved_spots:
+        if spot['name'] == name:
+            return jsonify({'error': '该景点已存在景点收藏列表中，请继续添加新景点'}), 400
     spot = {'id': next_id, 'name': name}
     saved_spots.append(spot)
     next_id += 1
@@ -37,8 +41,18 @@ def delete_saved_spot(spot_id):
 def ai_suggest():
     data = request.get_json()
     location = data.get('location')
-    if not location:
-        return jsonify({'error': '缺少location参数'}), 400
+    # 输入格式校验
+    if not location or not str(location).strip():
+        return jsonify({'error': '输入格式错误，请重新输入'}), 400
+    location_str = str(location).strip()
+    if location_str.isdigit():
+        return jsonify({'error': '输入格式错误，请重新输入'}), 400
+    if len(location_str) < 2:
+        return jsonify({'error': '输入格式错误，请重新输入'}), 400
+    if all(ord(c) < 128 and not c.isdigit() for c in location_str):  # 全英文或全符号
+        return jsonify({'error': '输入格式错误，请重新输入'}), 400
+    if all(not c.isalnum() for c in location_str):  # 全特殊字符
+        return jsonify({'error': '输入格式错误，请重新输入'}), 400
     suggestion = get_ai_suggestion(location)
     return jsonify({'suggestion': suggestion})
 
